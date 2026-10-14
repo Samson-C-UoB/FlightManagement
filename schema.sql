@@ -75,7 +75,7 @@ CREATE TABLE flights (
     departure_time  DATETIMENOT NULL,
     arrival_time    DATETIME     NOT NULL,
     flight_status   VARCHAR(10)  NOT NULL DEFAULT 'Arrived'
-                    CHECK (flight_status IN ('Boarding','Arrived', 'Delayed', 'Cancelled')),
+                    CHECK (flight_status IN  ("Scheduled", "Boarding", "Departed", "Arrived", "Delayed", "Cancelled")),
     departure_gate  VARCHAR(5),
     arrival_gate    VARCHAR(5),
     FOREIGN KEY (from_airport_id) REFERENCES airports (airport_id)
@@ -101,7 +101,7 @@ CREATE TABLE flight_assignment (
                     CHECK (role IN ('Captain', 'Vice Captain')),
     assigned_at     DATETIME     NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (flight_id) REFERENCES flights (flight_id)
-                            ON UPDATE CASCADE ON DELETE RESTRICT,
+                            ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY (pilot_id)  REFERENCES pilots (pilot_id)
                             ON UPDATE CASCADE ON DELETE RESTRICT,
 );

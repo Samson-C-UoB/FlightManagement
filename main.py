@@ -11,7 +11,7 @@ import queries
 db_name = "flight_management.db"
 DATETIME_FORMAT = "%Y-%m-%d %H:%M" 
 DATE_FORMAT = "%Y-%m-%d"
-flight_status = ("Boarding","Arrived", "Delayed", "Cancelled")
+flight_status =  ("Scheduled", "Boarding", "Departed", "Arrived", "Delayed", "Cancelled")
 pilot_rank = ("Captain", "Vice Captain")
 
 # =====================================================================
@@ -325,9 +325,9 @@ class DBOperations:
       # add conditions , then for each conditions add params
       conditions = []
       params = []
-      if destination:      # airport code or city, e.g. 'JFK' or 'new york'
-        conditions.append("(t.airport_code = ?")
-        params += [destination.upper()]
+      if destination:      # airport code, e.g. 'JFK'
+        conditions.append("t.airport_code = ?")
+        params.append(destination.upper())
       if status:
         conditions.append("f.flight_status = ?")
         params.append(status)
@@ -398,49 +398,53 @@ class DBOperations:
       return result
  
     def update_data(self):
-          try:
-            self.get_connection()
-            flight_id = self.choose_flight()
-            if flight_id is None:
-              print("No Record Found")
-              return
-            flight = self.get_flight(flight_id)
-            print("\nFlight:", flight.get_flight_number(), flight.get_from_airport(), "->",
-                  flight.get_to_airport(), flight.get_departure_time())
-    
-            print("  Press Enter to keep the current value shown in [brackets];")
-            print("  press Esc then Enter at any question to cancel.\n")
-            flight.set_departure_time(ask_until_valid(
-              "Departure time",
-              check_datetime,
-              flight.get_departure_time()))
-            flight.set_arrival_time(ask_until_valid(
-              "Arrival time",
-              lambda value: check_arrival_time(flight.get_departure_time(), value),
-              flight.get_arrival_time()))
-            print("  Status: " + ", ".join(str(i + 1) + "=" + s for i, s in enumerate(flight_status)))
-            flight.set_status(ask_until_valid("Status number", check_status_number, str(flight_status.index(flight.get_status()) + 1)))
-            
-            flight.set_departure_gate(ask_until_valid("Departure gate", check_gate,flight.get_departure_gate() or "-", required=False))
-            
-            flight.set_arrival_gate(ask_until_valid("Arrival gate", check_gate,flight.get_arrival_gate() or "-", required=False))
-            
-            flight.set_aircraft(ask_until_valid("Aircraft ID",lambda aircraft_id: check_aircraft(self.cur, aircraft_id),
-                                                str(flight.get_aircraft())))
-      
-            result = self.update_flight(flight)
-            if result.rowcount != 0:
-              print("\n" + str(result.rowcount) + " Row(s) affected.")
-              self.cur.execute(queries.sql_search, (flight_id,))
-              print_table(self.cur, self.cur.fetchall())
-            else:
-              print("No Record Found")
-          except CancelInput:
-            print("\nCancelled - nothing was changed.")
-          except Exception as e:
-            print("Error: " + str(e))
-          finally:
-            self.conn.close()
+      try:
+        self.get_connection()
+        flight_id = self.choose_flight()
+        if flight_id is None:
+          print("No Record Found")
+          return
+        flight = self.get_flight(flight_id)
+        print("\nFlight:", flight.get_flight_number(), flight.get_from_airport(), "->",
+              flight.get_to_airport(), flight.get_departure_time())
+
+        print("  Press Enter to keep the current value shown in [brackets];")
+        print("  press Esc then Enter at any question to cancel.\n")
+        flight.set_departure_time(ask_until_valid(
+          "Departure time",
+          check_datetime,
+          flight.get_departure_time()))
+        flight.set_arrival_time(ask_until_valid(
+          "Arrival time",
+          lambda value: check_arrival_time(flight.get_departure_time(), value),
+          flight.get_arrival_time()))
+        print("  Status: " + ", ".join(str(i + 1) + "=" + s for i, s in enumerate(flight_status)))
+        current = flight.get_status()
+        if current in flight_status:
+          default = str(flight_status.index(current) + 1)
+        else:
+          default = None
+        flight.set_status(ask_until_valid("Status number", check_status_number, default))
+        flight.set_departure_gate(ask_until_valid("Departure gate", check_gate,flight.get_departure_gate() or "-", required=False))
+        
+        flight.set_arrival_gate(ask_until_valid("Arrival gate", check_gate,flight.get_arrival_gate() or "-", required=False))
+        
+        flight.set_aircraft(ask_until_valid("Aircraft ID",lambda aircraft_id: check_aircraft(self.cur, aircraft_id),
+                                            str(flight.get_aircraft())))
+  
+        result = self.update_flight(flight)
+        if result.rowcount != 0:
+          print("\n" + str(result.rowcount) + " Row(s) affected.")
+          self.cur.execute(queries.sql_search, (flight_id,))
+          print_table(self.cur, self.cur.fetchall())
+        else:
+          print("No Record Found")
+      except CancelInput:
+        print("\nCancelled - nothing was changed.")
+      except Exception as e:
+        print("Error: " + str(e))
+      finally:
+        self.conn.close()
 
   # -------------------------------------------------------------------
   # Menu option 6: delete a flight. 
